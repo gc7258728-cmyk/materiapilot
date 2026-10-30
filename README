@@ -1,0 +1,357 @@
+MATÉRIAPILOT — REGISTRE & APPROVISIONNEMENTS
+Version 1.0 — 30 octobre 2026 — Interface en français
+
+1. OBJECTIF
+
+Suivre les matériaux d'un ou plusieurs chantiers : ciment, sable, gravier,
+bois, acier et références ajoutées par l'utilisateur. Chaque matériau garde
+son unité. L'application rapproche les stocks théoriques, les mouvements,
+les commandes, les réceptions partielles et les comptages physiques.
+
+La prévision probabiliste complète ce suivi : elle n'est pas le registre.
+Ce projet universitaire ne garantit ni la sécurité d'un ouvrage ni une
+conformité réglementaire. Aucun prix de marché ni norme n'est présumé.
+
+Différences avec StockFlow :
+- registre de mouvements, références de bons et corrections visibles ;
+- plusieurs chantiers, plusieurs zones, transferts entre zones / chantiers ;
+- fournisseurs, commandes, refus et réceptions partielles ;
+- inventaires physiques et écarts, pertes séparées de la consommation ;
+- prévisions utilisant les commandes ouvertes et le calendrier d'activité ;
+- comparaison d'un apport hypothétique avec les mêmes tirages aléatoires ;
+- interface bleu nuit, gris froid et jaune signal, poste de pilotage opérationnel.
+
+2. LES TROIS FICHIERS LIVRÉS
+
+app.py             Fonctions, calculs, interfaces, HTML/CSS et exports.
+requirement.text   Dépendances Python (nom demandé pour la livraison locale).
+README             Installation, méthode, données et exemples de vérification.
+
+Les données SQLite, tests, captures et archives sont hors du dossier livré.
+Ne place pas de mot de passe ou de jeton d'accès dans ces fichiers.
+
+3. INSTALLATION SOUS WINDOWS / VS CODE
+
+Configuration vérifiée : Python 3.14, Streamlit 1.65. Préférer un Python récent
+64 bits compatible avec les bibliothèques. Les versions sont bornées dans
+requirement.text ; le fichier n'est pas un verrouillage exact de toutes les
+dépendances transitives. Sur une autre machine, vérifier les exports après
+installation ou modification des versions.
+
+Ouvrir le dossier materiapilot dans VS Code, puis Terminal > Nouveau terminal.
+
+    python -m pip install -r requirement.text
+    python -m streamlit run app.py
+
+En cas de plusieurs Python installés, sélectionner l'interpréteur souhaité
+dans VS Code puis utiliser ce même interpréteur pour installer et lancer.
+L'application s'ouvre dans le navigateur ; aucune page de connexion.
+
+Le thème est intégré en CSS. Pour reproduire aussi les couleurs des widgets
+et graphiques natifs observées dans la version testée :
+
+    python -m streamlit run app.py --theme.base light --theme.primaryColor "#2457B8" --theme.backgroundColor "#EDF2F8" --theme.secondaryBackgroundColor "#E1E9F4" --theme.textColor "#172D46" --theme.sidebar.backgroundColor "#102239" --theme.sidebar.secondaryBackgroundColor "#203B5B" --theme.sidebar.textColor "#F0F5FF"
+
+Une police en ligne est facultative : si elle est indisponible, une police
+locale sans empattement prend le relais. Les commandes restent natives.
+
+Bibliothèques :
+- streamlit : navigation, formulaires, tableaux, téléversements et téléchargements ;
+- numpy : générateur reproductible, Poisson, triangulaire, quantiles et simulations ;
+- pandas : manipulation des tableaux, imports et exports CSV / Excel ;
+- plotly : graphiques interactifs, courbes et bandes de quantiles ;
+- openpyxl : lecture / écriture Excel, présentation et cellules texte protégées ;
+- reportlab : rapports PDF paginés avec police Unicode embarquée.
+- sqlite3, json, datetime, pathlib, uuid, etc. : bibliothèque standard Python.
+
+4. DÉMONSTRATION ET DONNÉES RÉELLES
+
+Au démarrage, la démonstration est explicitement fictive : quantités, prix,
+fournisseurs et prévisions inventés. Elle est en mémoire de session. Changer
+d'espace ou recharger l'exemple abandonne ses modifications ; télécharger
+un JSON si l'on souhaite les conserver.
+
+Choisir « Mes données » pour le registre réel. Il démarre sans stock,
+sans prix et sans profil de consommation actif. Les cinq matériaux sont
+uniquement des références vides. Les modifications validées sont enregistrées.
+
+Le registre réel est commun aux visiteurs utilisant le même serveur.
+Il n'y a pas de gestion de comptes ou de droits. Une révision SQLite protège
+contre l'écrasement par une session ancienne : actualiser puis recommencer
+si un autre utilisateur a enregistré une modification entre-temps.
+
+Emplacement local par défaut :
+
+    C:\Users\<utilisateur>\Documents\Codex\data\materiapilot\registre.sqlite3
+
+Pour choisir un autre répertoire, hors du dossier de code, dans PowerShell :
+
+    $env:MATERIAPILOT_DATA_DIR = "C:\Users\FIFEN HOUSSEIN\Documents\MateriaPilotDonnees"
+    python -m streamlit run app.py
+
+Un disque d'hébergement temporaire n'est pas une sauvegarde durable.
+La base SQLite reste locale au serveur ; elle n'est pas synchronisée dans
+GitHub. Télécharger régulièrement le JSON complet. Un stockage serveur
+durable doit être prévu avant un usage collectif pérenne.
+
+5. PARCOURS ET RÈGLES DU REGISTRE
+
+Cockpit
+- stocks par matériau et répartition par zone du chantier sélectionné ;
+- commandes ouvertes, retards et seuils atteints ;
+- valeur de référence des stocks dont le prix est connu ;
+- nombre de références en stock sans prix, sans masquer le caractère partiel.
+Les quantités physiques de matériaux d'unités différentes ne sont pas sommées.
+
+Référentiel
+- jusqu'à 10 chantiers, 40 zones et 40 matériaux ;
+- codes de zones et matériaux uniques dans le registre ;
+- l'unité d'un matériau est verrouillée dès le premier bon ou commande ;
+- sacs et pièces entiers, sans conversion automatique de densité ;
+- prix unitaire de référence facultatif et source obligatoire s'il est fourni ;
+- les références utilisées ne sont pas supprimées, afin de préserver les liens.
+
+Mouvements
+- stock initial : entrée d'une quantité constatée au départ ;
+- consommation : sortie vers l'utilisation ;
+- retour d'utilisation : restitution déclarée au dépôt ;
+- perte / casse : sortie avec motif obligatoire ;
+- transfert : sortie d'une zone, entrée d'une autre, sans création de matériau ;
+- inventaire : écart = quantité comptée - quantité théorique ;
+- réception : seule la quantité acceptée de la commande entre en stock ;
+- annulation : contre-écriture datée, motif obligatoire, original conservé.
+
+Stock = initial + accepté + retours + transferts entrants - consommation
+        - pertes - transferts sortants + écarts d'inventaire + contre-écritures.
+
+Le journal est chronologique selon la date de prise en compte, sans date
+future. Pour un document ancien arrivé tard, enregistrer la date de prise
+en compte et préciser la date documentaire dans la note. Le registre ne
+doit pas prétendre reconstruire un stock passé à partir de bons non saisis.
+
+Aucune opération ne peut rendre un stock négatif, même lors d'une annulation.
+Un bon identique, pour le même type, matériau et paire de zones, est refusé.
+Pour corriger : annuler puis saisir une nouvelle référence (ex. suffixe CORR).
+Ce mécanisme de traçabilité n'est pas un journal comptable inviolable.
+
+Commandes
+- une commande porte sur un matériau, un fournisseur et un dépôt ;
+- quantités acceptées / refusées enregistrées pour chaque bon de livraison ;
+- reste dû = commandé - accepté net des annulations ; le refus reste dû ;
+- une clôture manuelle signifie que le solde n'est plus attendu ;
+- la date prévue, le retard supposé et la note peuvent être révisés ;
+- prix commandé et prix de référence sont distincts ;
+- les valeurs acceptées sont partielles si des prix ne sont pas renseignés.
+
+Inventaire & analyse
+- un comptage ajuste uniquement le matériau et la zone comptés ;
+- historique théorique à la fin des dates de mouvements ;
+- consommation, retours et pertes affichés séparément ;
+- une date sans bon n'est pas automatiquement une journée observée à zéro ;
+- une restitution déclarée n'est pas une preuve de son origine physique.
+
+6. PRÉVISIONS PROBABILISTES
+
+Activer de 1 à 10 profils pour le chantier sélectionné. La moyenne désigne
+une consommation par jour d'activité. Indiquer l'origine de l'hypothèse.
+
+Modèles :
+- Constante : quantité imposée, entière pour les sacs / pièces ;
+- Poisson : nombres entiers de sacs / pièces, moyenne μ et variance μ ;
+- Triangulaire pour unités continues : minimum μ(1-a), mode μ, maximum μ(1+a),
+  où a est l'amplitude en pourcentage / 100. Moyenne μ. Si a=0 ou μ=0,
+  la demande est constante. Cette loi exprime une plage supposée.
+
+J1 est demain. Le calendrier est en jours calendaires ; seuls les jours
+choisis consomment. Une interruption commune de probabilité choisie annule
+toutes les demandes du jour dans un scénario, sans annuler les livraisons.
+
+Les commandes ouvertes apportent leur reste dû, à la date prévue + un retard
+entier uniforme de 0 au maximum supposé. Les commandes échues, y compris
+prévues aujourd'hui sans réception enregistrée, sont exclues par défaut.
+Leur report à J1 doit être explicitement coché ou leur date prévue révisée.
+
+Choisir une livraison en début ou fin de journée. La rupture est la première
+demande non servie à son heure, pas un stock nul en fin de journée. Les besoins
+non servis ne sont pas reportés en arriéré. Les stocks des zones sont agrégés
+sans temps de transfert, ni réservation par équipe.
+
+500 à 20 000 scénarios, horizon de 7 à 90 jours, graine reproductible.
+Les demandes sont indépendantes entre matériaux et jours conditionnellement
+à l'interruption commune ; les retards sont indépendants des demandes et des
+autres commandes. Adapter ces hypothèses à la situation avant interprétation.
+
+Résultats :
+- probabilité d'au moins un manque par matériau sur l'horizon ;
+- risque global d'au moins un matériau en manque, jamais somme des risques ;
+- quantiles Q10 / médiane / Q90 du premier manque, sur tous les scénarios ;
+- si un quantile dépasse l'horizon, afficher « > H j », sans date inventée ;
+- quantiles empiriques de stock (méthode inverted_cdf, adaptée aux unités entières) ;
+- demandes moyennes servies et non servies ;
+- intervalle de Wilson 95 % pour l'échantillonnage de Monte-Carlo uniquement.
+
+L'intervalle n'inclut ni les erreurs de saisie, ni le choix de loi, ni les
+incertitudes des hypothèses. Un résultat de 0 % n'est pas la garantie d'un
+risque nul. La probabilité est conditionnelle au modèle et à ses paramètres.
+
+Le levier ajoute une livraison déterministe fictive à une date choisie.
+Les deux scénarios utilisent les mêmes tirages pour isoler son effet.
+Aucun bon ni commande réelle n'est créé. Les exports et le PDF présentent
+le scénario de référence ; la comparaison du levier reste visible à l'écran.
+
+Toute modification enregistrée invalide la prévision précédente. Une nouvelle
+date civile ou un autre chantier ne réutilise pas une ancienne prévision.
+
+Références techniques officielles :
+https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.poisson.html
+https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.triangular.html
+https://numpy.org/doc/stable/reference/generated/numpy.quantile.html
+
+7. IMPORTS ET EXPORTS
+
+Import CSV UTF-8 ou XLSX : modèle exact, 1 à 300 lignes, maximum 5 Mo.
+Colonnes :
+date,type,materiau_code,source_zone,destination_zone,quantite,compte_physique,document,acteur,note
+
+Types disponibles : Stock initial, Consommation, Retour d’utilisation,
+Perte / casse, Transfert, Inventaire. Utiliser les codes du registre.
+Dates ISO AAAA-MM-JJ, tri croissant. Pour Inventaire, remplir compte_physique ;
+l'écart est recalculé. Réceptions / annulations via leurs outils dédiés.
+Tout le lot est refusé si une seule ligne est invalide. Une confirmation
+est requise après l'aperçu. Ne pas importer un exemple fictif dans un registre
+réel sans l'adapter et le vouloir explicitement.
+
+CSV : stocks, journal, résumé des prévisions, courbes, scénarios.
+Un jour de rupture vide dans les scénarios signifie « pas de manque observé
+sur l'horizon ». Aucun H+1 artificiel n'est exporté comme un jour de rupture.
+Excel : stocks, journal, commandes, catalogue, fournisseurs, prévisions à jour.
+PDF : stock, zones, commandes, pertes / écarts, prévision à jour et limites.
+JSON : sauvegarde intégrale du mode courant. Une restauration remplace ce
+registre seulement après confirmation et validation. Modes réel et fictif
+incompatibles à la restauration. Conserver une copie avant remplacement.
+
+Les cellules texte Excel ne deviennent pas des formules ; les textes CSV
+commençant par des caractères de formule sont préfixés pour limiter cette
+interprétation lors d'une ouverture dans un tableur.
+
+8. TESTS MANUELS RAPIDES
+
+Recharger l'exemple avant chaque essai indépendant.
+
+A. Démonstration / Résidence Horizon :
+   CIM = 110 sacs (DEP 94 + BLOC-A 16) ; SAB = 17 m³ ; GRA = 26 m³ ;
+   BOI = 5 m³ ; ACI = 900 kg. Atelier École : 30 sacs de ciment.
+   Valeur de référence connue Horizon = 2 198 000 FCFA (prix fictifs).
+   BC-001 : 50 commandés, 20 acceptés, 3 refusés, 30 restent dus.
+B. Consommer 4 sacs dans BLOC-A : 12 sur cette zone, 106 au chantier.
+   Annuler ce bon : retour à 16 et 110, original toujours visible.
+C. Réceptionner sur BC-001 10 sacs acceptés / 2 refusés : DEP 104,
+   total 120, reste dû 20, refus cumulés 5. Annuler rétablit le départ.
+D. Compter 92 sacs à DEP : écart -2, total chantier 108.
+E. Transférer 7 sacs DEP vers ECO-DEP : Horizon 103, École 37 ;
+   stock global ciment inchangé à 140 sacs.
+F. Importer un lot avec une sortie excessive : aucun bon du lot ajouté.
+G. Dans un chantier de test sans commandes, stock 100 sacs et demande
+   constante 10 sacs, sept jours actifs, interruption 0 %, horizon 30 j :
+   premier manque J11, risque 100 %. À J10, stock zéro sans manque.
+H. Même cas + 50 sacs à J5, retard 0 : premier manque J16.
+   Le levier de simulation permet ce test sans modifier le registre.
+I. Stock 90, demande 10, 100 livrés à J10 :
+   début de journée = aucun manque dans les 19 premiers jours ;
+   fin de journée = premier manque J10, même avec un stock final positif.
+J. Un vendredi, stock 0, demande 10, lundi-vendredi actifs : premier manque
+   J3 (lundi). Une demande nulle ne rompt jamais, quantile « > H j ».
+K. Exporter PDF / Excel / CSV, comparer aux tableaux. Sauvegarder en JSON,
+   ajouter un mouvement d'essai puis restaurer la sauvegarde dans le même mode.
+
+9. PUBLIER SUR GITHUB ET STREAMLIT COMMUNITY CLOUD
+
+Conserver ici requirement.text. Community Cloud attend le nom standard
+requirements.txt. Préparer UNE COPIE DE DÉPLOIEMENT dans un autre dossier :
+
+    $destination = "C:\Users\FIFEN HOUSSEIN\Desktop\MateriaPilot-deploiement"
+    New-Item -ItemType Directory -Path $destination
+    Copy-Item -LiteralPath .\app.py -Destination $destination
+    Copy-Item -LiteralPath .\README -Destination $destination
+    Copy-Item -LiteralPath .\requirement.text -Destination (Join-Path $destination "requirements.txt")
+
+Le dossier livré garde ses trois fichiers ; la copie possède app.py,
+requirements.txt et README. Ne jamais publier la base de données.
+
+Dans GitHub, créer un nouveau dépôt, par exemple materiapilot, puis importer
+les trois fichiers DE LA COPIE. Si Git est déjà initialisé pour un autre
+projet, ne pas modifier son remote. Initialiser le dossier de copie distinct :
+
+    git init
+    git add .
+    git commit -m "Première version de MateriaPilot"
+    git branch -M main
+    git remote add origin https://github.com/VOTRE_COMPTE/materiapilot.git
+    git push -u origin main
+
+Dans Streamlit Community Cloud, créer une app à partir de ce dépôt, branche
+main, fichier app.py. Pour « Paste URL », fournir l'URL DU FICHIER Python :
+
+    https://github.com/VOTRE_COMPTE/materiapilot/blob/main/app.py
+
+Choisir une version Python compatible avec les dépendances si proposée.
+Si une bibliothèque manque, vérifier requirements.txt sur la branche réellement
+déployée, son orthographe en minuscules et les logs Manage app.
+Un simple redémarrage ne corrige pas un mauvais nom de fichier de dépendances.
+
+Le stockage SQLite de Community Cloud ne garantit pas la conservation après
+reconstruction du serveur. Prévoir des sauvegardes JSON ou un stockage durable
+adapté avant une utilisation réelle continue. Aucun déploiement public n'est
+réalisé automatiquement par la livraison locale.
+
+Documentation officielle :
+https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/app-dependencies
+
+Pour mettre à jour la copie déployée après avoir testé le code :
+
+    git status
+    git add .
+    git commit -m "Amélioration du suivi des matériaux"
+    git push
+
+Vérifier que le dossier actif est celui de la copie de déploiement et que
+son remote correspond au bon dépôt avant tout envoi.
+
+10. VÉRIFICATIONS DE LIVRAISON
+
+Vérifications effectuées le 30 octobre 2026 :
+- installation des six dépendances contrôlée avec requirement.text ;
+- 22 tests du modèle : stocks, transfert, impossibilité de stock négatif,
+  comptage, annulation, réception partielle ou intégralement refusée,
+  chronologie, doublons de bons, import atomique, sauvegarde malformée,
+  calendrier, horaire de livraison, censure des quantiles et concurrence SQLite ;
+- cas déterministes J11, J16, rupture à J10 selon l'horaire de réception ;
+- parcours navigateur complet en 1440 et 390 pixels : journal, correction,
+  réception, inventaire, 5 000 simulations, CSV / Excel / PDF, import,
+  restauration identique et création dans un registre réel isolé de test ;
+- contrôle des sept pages en 768 et 320 pixels, sans débordement horizontal
+  de la page ; les tableaux détaillés disposent de leur propre défilement ;
+- ajout de matériau / fournisseur / chantier / zone, unité verrouillée,
+  nouvelle commande, profil, prévision vérifiable J10, clôture et invalidation
+  de la prévision, fichier XLSX invalide et rechargement de la démonstration ;
+- quatre rapports PDF de deux pages vérifiés : texte dans les marges,
+  Unicode lisible, pages non vides et contrôle visuel de la mise en page ;
+- les stocks et les scénarios téléchargés correspondent aux cas testés.
+
+Environnement : Python 3.14 ; Streamlit 1.65.0 ; NumPy 2.5.3 ; pandas 3.0.6 ;
+Plotly 7.1.0 ; openpyxl 3.1.5 ; ReportLab 4.5.1 ; navigateur Edge local.
+Les captures, tests et données QA sont hors du dossier livré, dans work.
+Les essais utilisent un navigateur redimensionné : un essai sur téléphone
+physique, les autres systèmes et navigateurs, un test de charge avec beaucoup
+d'utilisateurs et un déploiement public restent à réaliser.
+
+11. LIMITES ET PÉRIMÈTRE
+
+Maximum : 3 000 événements, 500 commandes, 50 fournisseurs, 40 références,
+40 zones, 10 chantiers. Ces limites bornent les sauvegardes et les calculs.
+Le registre ne gère pas les lots, dates de péremption, factures fiscales,
+codes-barres, engagements comptables, réservations, authentification ou
+synchronisation hors ligne. Aucun ajustement automatique sur des données
+observées insuffisantes : les hypothèses de simulation sont explicites.
+Le programme n'attribue pas un manque à une fraude ni une causalité à une
+simple variation de stock. Le rapprochement humain reste nécessaire.
